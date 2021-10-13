@@ -1,0 +1,11 @@
+# Next.js
+/.next
+/public
+/out
+
+# config
+next.config.js
+.eslintrc.js
+
+# git
+.gitkeep
