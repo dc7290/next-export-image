@@ -3,34 +3,50 @@ import Head from 'next/head'
 import { DetailedHTMLProps, ImgHTMLAttributes } from 'react'
 import { useInView } from 'react-intersection-observer'
 
-type ImgElementStyle = NonNullable<JSX.IntrinsicElements['img']['style']>
+const toBase64 = (str: string) => {
+  if (typeof window === 'undefined') {
+    return Buffer.from(str).toString('base64')
+  } else {
+    return window.btoa(str)
+  }
+}
+
+const loadedImageURLs = new Set<string>()
+const emptyDataURL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+
+const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
+type LoadingValue = typeof VALID_LOADING_VALUES[number]
+
+const VALID_LAYOUT_VALUES = ['fill', 'fixed', 'intrinsic', 'responsive', undefined] as const
+type LayoutValue = typeof VALID_LAYOUT_VALUES[number]
 
 type PlaceholderValue = 'blur' | 'empty'
 
 type OnLoadingComplete = (result: { naturalWidth: number; naturalHeight: number }) => void
 
+type ImgElementStyle = NonNullable<JSX.IntrinsicElements['img']['style']>
+
 type Props = {
   src: string
-  layout?: 'responsive' | 'fill'
-  loading?: 'lazy' | 'eager'
+  layout?: LayoutValue
   priority?: boolean
+  loading?: LoadingValue
+  lazyBoundary?: string
   placeholder?: PlaceholderValue
-  onLoadingComplete?: OnLoadingComplete
-  wrapperClassName?: string
+  unoptimized?: boolean
   objectFit?: ImgElementStyle['objectFit']
   objectPosition?: ImgElementStyle['objectPosition']
-  lazyBoundary?: `${number}px`
+  onLoadingComplete?: OnLoadingComplete
+  wrapperClassName?: string
 } & Omit<
   DetailedHTMLProps<ImgHTMLAttributes<HTMLImageElement>, HTMLImageElement>,
-  'width' | 'height' | 'srcSet' | 'ref' | 'decoding'
+  'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading' | 'style' | 'decoding'
 >
-
-const loadedImageURLs = new Set<string>()
-const emptyDataURL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
 
 const handleLoading = (
   img: HTMLImageElement | null,
   src: string,
+  layout: LayoutValue,
   placeholder: PlaceholderValue,
   onLoadingComplete?: OnLoadingComplete
 ) => {
@@ -54,8 +70,24 @@ const handleLoading = (
           onLoadingComplete({ naturalWidth, naturalHeight })
         }
       })
+
+      if (process.env.NODE_ENV !== 'production') {
+        if (img.parentElement?.parentElement?.parentElement) {
+          const parent = getComputedStyle(img.parentElement.parentElement?.parentElement)
+          if (layout === 'responsive' && parent.display === 'flex') {
+            console.warn(
+              `Image with src "${src}" may not render properly as a child of a flex container. Consider wrapping the image with a div to configure the width.`
+            )
+          } else if (layout === 'fill' && parent.position !== 'relative') {
+            console.warn(
+              `Image with src "${src}" may not render properly with a parent using position:"${parent.position}". Consider changing the parent style to position:"relative" with a width and height.`
+            )
+          }
+        }
+      }
     }
   }
+
   if (img.complete) {
     handleLoad()
   } else {
@@ -65,43 +97,86 @@ const handleLoading = (
 
 const ExportImage = ({
   src,
-  alt,
   sizes,
-  layout = 'responsive',
+  alt,
   priority = false,
   loading,
   lazyBoundary = '200px',
   className,
-  wrapperClassName,
-  onLoadingComplete,
   placeholder = 'empty',
   objectFit,
   objectPosition,
-  ...imgProps
+  onLoadingComplete,
+  wrapperClassName,
+  ...all
 }: Props) => {
-  let isLazy = !priority && (loading === 'lazy' || typeof loading === 'undefined')
-  if (typeof window !== 'undefined' && loadedImageURLs.has(src)) {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    isLazy = false
+  const rest: Partial<Props> = all
+  let layout: NonNullable<LayoutValue> = sizes ? 'responsive' : 'intrinsic'
+  if ('layout' in rest) {
+    if (rest.layout) layout = rest.layout
+
+    delete rest['layout']
   }
 
-  if (process.env.NODE_ENV !== 'production') {
-    if (priority && loading === 'lazy') {
-      throw new Error(
-        `Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`
-      )
-    }
+  let isLazy = !priority && (loading === 'lazy' || typeof loading === 'undefined')
+  if (typeof window !== 'undefined' && loadedImageURLs.has(src)) {
+    isLazy = false
   }
 
   const srcData = require(`~/src/images/${src}`)
   const { placeholder: blurDataURL, width, height, srcSet, src: outSrc } = srcData
   const serSetWebp = require(`~/src/images/${src}?format=webp`).srcSet
 
+  if (process.env.NODE_ENV !== 'production') {
+    if (!src) {
+      throw new Error(
+        `Image is missing required "src" property. Make sure you pass "src" in props to the \`next/image\` component. Received: ${JSON.stringify(
+          { width, height }
+        )}`
+      )
+    }
+
+    if (!VALID_LAYOUT_VALUES.includes(layout)) {
+      throw new Error(
+        `Image with src "${src}" has invalid "layout" property. Provided "${layout}" should be one of ${VALID_LAYOUT_VALUES.map(
+          String
+        ).join(',')}.`
+      )
+    }
+
+    if (!VALID_LOADING_VALUES.includes(loading)) {
+      throw new Error(
+        `Image with src "${src}" has invalid "loading" property. Provided "${loading}" should be one of ${VALID_LOADING_VALUES.map(
+          String
+        ).join(',')}.`
+      )
+    }
+
+    if (priority && loading === 'lazy') {
+      throw new Error(
+        `Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`
+      )
+    }
+
+    if ('ref' in rest) {
+      console.warn(
+        `Image with src "${src}" is using unsupported "ref" property. Consider using the "onLoadingComplete" property instead.`
+      )
+    }
+
+    if ('style' in rest) {
+      console.warn(
+        `Image with src "${src}" is using unsupported "style" property. Please use the "className" property instead.`
+      )
+    }
+  }
+
   const { ref, inView } = useInView({ rootMargin: lazyBoundary, triggerOnce: true, skip: !isLazy })
   const isVisible = !isLazy || inView
 
   let wrapperStyle: JSX.IntrinsicElements['div']['style'] | undefined
   let sizerStyle: JSX.IntrinsicElements['div']['style'] | undefined
+  let sizerSvg: string | undefined
   const imgStyle: ImgElementStyle | undefined = {
     position: 'absolute',
     top: 0,
@@ -135,7 +210,6 @@ const ExportImage = ({
         }
       : {}
   if (layout === 'fill') {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     wrapperStyle = {
       display: 'block',
       overflow: 'hidden',
@@ -150,7 +224,6 @@ const ExportImage = ({
       margin: 0,
     }
   } else if (layout === 'responsive') {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     wrapperStyle = {
       display: 'block',
       overflow: 'hidden',
@@ -159,8 +232,31 @@ const ExportImage = ({
       boxSizing: 'border-box',
       margin: 0,
     }
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     sizerStyle = { display: 'block', boxSizing: 'border-box', paddingTop: `calc(${height} / ${width} * 100%)` }
+  } else if (layout === 'intrinsic') {
+    wrapperStyle = {
+      display: 'inline-block',
+      maxWidth: '100%',
+      overflow: 'hidden',
+      position: 'relative',
+      boxSizing: 'border-box',
+      margin: 0,
+    }
+    sizerStyle = {
+      boxSizing: 'border-box',
+      display: 'block',
+      maxWidth: '100%',
+    }
+    sizerSvg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg" version="1.1"/>`
+  } else if (layout === 'fixed') {
+    wrapperStyle = {
+      overflow: 'hidden',
+      boxSizing: 'border-box',
+      display: 'inline-block',
+      position: 'relative',
+      width,
+      height,
+    }
   }
 
   let imgAttributes: {
@@ -186,11 +282,28 @@ const ExportImage = ({
 
   return (
     <div className={wrapperClassName} style={wrapperStyle}>
-      {sizerStyle && <div style={sizerStyle} />}
+      {sizerStyle && (
+        <div style={sizerStyle}>
+          {sizerSvg && (
+            <img
+              style={{
+                maxWidth: '100%',
+                display: 'block',
+                margin: 0,
+                border: 'none',
+                padding: 0,
+              }}
+              alt=""
+              aria-hidden={true}
+              src={`data:image/svg+xml;base64,${toBase64(sizerSvg)}`}
+            />
+          )}
+        </div>
+      )}
       <picture>
         <source srcSet={imgAttributes.serSetWebp} type="image/webp" />
         <img
-          {...imgProps}
+          {...rest}
           src={imgAttributes.src}
           srcSet={imgAttributes.srcSet}
           sizes={imgAttributes.sizes}
@@ -198,7 +311,7 @@ const ExportImage = ({
           className={className}
           ref={(img) => {
             ref(img)
-            handleLoading(img, outSrc, placeholder, onLoadingComplete)
+            handleLoading(img, outSrc, layout, placeholder, onLoadingComplete)
           }}
           style={{ ...imgStyle, ...blurStyle }}
           alt={alt}
@@ -206,7 +319,7 @@ const ExportImage = ({
       </picture>
       <noscript>
         <img
-          {...imgProps}
+          {...rest}
           src={outSrc}
           srcSet={srcSet}
           sizes={sizes}
@@ -226,13 +339,13 @@ const ExportImage = ({
         // https://html.spec.whatwg.org/multipage/semantics.html#attr-link-imagesrcset
         <Head>
           <link
-            key={'__nimg-' + imgAttributes.src + imgAttributes.srcSet + imgAttributes.sizes}
+            key={'__nimg-' + imgAttributes.src + imgAttributes.serSetWebp + imgAttributes.sizes}
             rel="preload"
             as="image"
-            href={imgAttributes.srcSet ? undefined : imgAttributes.src}
+            href={imgAttributes.serSetWebp ? undefined : imgAttributes.src}
             // eslint-disable-next-line @typescript-eslint/ban-ts-comment
             // @ts-ignore: imagesrcset is not yet in the link element type.
-            imagesrcset={imgAttributes.srcSet}
+            imagesrcset={imgAttributes.serSetWebp}
             // eslint-disable-next-line @typescript-eslint/ban-ts-comment
             // @ts-ignore: imagesizes is not yet in the link element type.
             imagesizes={imgAttributes.sizes}
