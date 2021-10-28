@@ -17,6 +17,7 @@ const config = {
           publicPath: '/_next/static/chunks/images/',
           sizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
           placeholder: true,
+          placeholderSize: 8,
           // disable: process.env.NODE_ENV === 'development',
           adapter: require('responsive-loader/sharp'),
         },
