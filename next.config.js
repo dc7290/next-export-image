@@ -25,7 +25,6 @@ const config = {
 
     return config
   },
-  trailingSlash: true,
 }
 
 module.exports = config
