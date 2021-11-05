@@ -123,8 +123,7 @@ const ExportImage = ({
     isLazy = false
   }
 
-  const srcData = require(`~/src/images/${src}`)
-  const { placeholder: blurDataURL, width, height, srcSet, src: outSrc } = srcData
+  const { placeholder: blurDataURL, width, height, srcSet, src: outSrc } = require(`~/src/images/${src}`)
   const serSetWebp = require(`~/src/images/${src}?format=webp`).srcSet
 
   if (process.env.NODE_ENV !== 'production') {
@@ -174,10 +173,32 @@ const ExportImage = ({
   const { ref, inView } = useInView({ rootMargin: lazyBoundary, triggerOnce: true, skip: !isLazy })
   const isVisible = !isLazy || inView
 
-  let wrapperStyle: JSX.IntrinsicElements['div']['style'] | undefined
-  let sizerStyle: JSX.IntrinsicElements['div']['style'] | undefined
+  const wrapperStyle: JSX.IntrinsicElements['span']['style'] = {
+    boxSizing: 'border-box',
+    display: 'block',
+    overflow: 'hidden',
+    width: 'initial',
+    height: 'initial',
+    background: 'none',
+    opacity: 1,
+    border: 0,
+    margin: 0,
+    padding: 0,
+  }
+  const sizerStyle: JSX.IntrinsicElements['span']['style'] = {
+    boxSizing: 'border-box',
+    display: 'block',
+    width: 'initial',
+    height: 'initial',
+    background: 'none',
+    opacity: 1,
+    border: 0,
+    margin: 0,
+    padding: 0,
+  }
+  let hasSizer = false
   let sizerSvg: string | undefined
-  const imgStyle: ImgElementStyle | undefined = {
+  const imgStyle: ImgElementStyle = {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -204,59 +225,36 @@ const ExportImage = ({
     placeholder === 'blur'
       ? {
           filter: 'blur(20px)',
-          backgroundSize: objectFit ?? 'cover',
+          backgroundSize: objectFit || 'cover',
           backgroundImage: `url("${blurDataURL}")`,
-          backgroundPosition: objectPosition ?? '0% 0%',
+          backgroundPosition: objectPosition || '0% 0%',
         }
       : {}
   if (layout === 'fill') {
-    wrapperStyle = {
-      display: 'block',
-      overflow: 'hidden',
-
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      bottom: 0,
-      right: 0,
-
-      boxSizing: 'border-box',
-      margin: 0,
-    }
+    wrapperStyle.display = 'block'
+    wrapperStyle.position = 'absolute'
+    wrapperStyle.top = 0
+    wrapperStyle.left = 0
+    wrapperStyle.bottom = 0
+    wrapperStyle.right = 0
   } else if (layout === 'responsive') {
-    wrapperStyle = {
-      display: 'block',
-      overflow: 'hidden',
-      position: 'relative',
-
-      boxSizing: 'border-box',
-      margin: 0,
-    }
-    sizerStyle = { display: 'block', boxSizing: 'border-box', paddingTop: `calc(${height} / ${width} * 100%)` }
+    wrapperStyle.display = 'block'
+    wrapperStyle.position = 'relative'
+    hasSizer = true
+    sizerStyle.paddingTop = `calc(${height} / ${width} * 100%)`
   } else if (layout === 'intrinsic') {
-    wrapperStyle = {
-      display: 'inline-block',
-      maxWidth: '100%',
-      overflow: 'hidden',
-      position: 'relative',
-      boxSizing: 'border-box',
-      margin: 0,
-    }
-    sizerStyle = {
-      boxSizing: 'border-box',
-      display: 'block',
-      maxWidth: '100%',
-    }
+    wrapperStyle.display = 'inline-block'
+    wrapperStyle.position = 'relative'
+    wrapperStyle.maxWidth = '100%'
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    hasSizer = true
+    sizerStyle.maxWidth = '100%'
     sizerSvg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg" version="1.1"/>`
   } else if (layout === 'fixed') {
-    wrapperStyle = {
-      overflow: 'hidden',
-      boxSizing: 'border-box',
-      display: 'inline-block',
-      position: 'relative',
-      width,
-      height,
-    }
+    wrapperStyle.display = 'inline-block'
+    wrapperStyle.position = 'relative'
+    wrapperStyle.width = width
+    wrapperStyle.height = height
   }
 
   let imgAttributes: {
@@ -281,9 +279,9 @@ const ExportImage = ({
   }
 
   return (
-    <div className={wrapperClassName} style={wrapperStyle}>
+    <span className={wrapperClassName} style={wrapperStyle}>
       {sizerStyle && (
-        <div style={sizerStyle}>
+        <span style={sizerStyle}>
           {sizerSvg && (
             <img
               style={{
@@ -298,7 +296,7 @@ const ExportImage = ({
               src={`data:image/svg+xml;base64,${toBase64(sizerSvg)}`}
             />
           )}
-        </div>
+        </span>
       )}
       <picture>
         <source srcSet={imgAttributes.serSetWebp} type="image/webp" />
@@ -352,7 +350,7 @@ const ExportImage = ({
           ></link>
         </Head>
       ) : null}
-    </div>
+    </span>
   )
 }
 
