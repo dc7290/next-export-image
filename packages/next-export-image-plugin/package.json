@@ -1,0 +1,32 @@
+{
+  "name": "@next-export-image/plugin",
+  "version": "0.1.0",
+  "description": "> TODO: description",
+  "author": "dc7290 <dhkh.cba0927@gmail.com>",
+  "homepage": "https://github.com/dc7290/next-export-image#readme",
+  "license": "MIT",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "directories": {
+    "lib": "lib",
+    "test": "__tests__"
+  },
+  "files": [
+    "lib"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dc7290/next-export-image.git"
+  },
+  "scripts": {
+    "test": "echo \"Error: run tests from root\" && exit 1"
+  },
+  "bugs": {
+    "url": "https://github.com/dc7290/next-export-image/issues"
+  },
+  "dependencies": {
+    "responsive-loader": "2.3.0",
+    "sharp": "0.29.3"
+  },
+  "devDependencies": {}
+}

@@ -1,16 +1,12 @@
 {
-  "name": "next-export-image",
-  "license": "MIT",
+  "name": "next-export-image-project",
+  "version": "0.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "generate": "yanextrn build && next export",
-    "start": "next start",
-    "fix": "prettier --write './**/*.{js,jsx,ts,tsx}'",
-    "lint": "next lint . --cache",
-    "lint:fix": "next lint . --cache --fix",
     "lint-staged": "lint-staged",
-    "tsc": "tsc",
     "prepare": "husky install"
   },
   "lint-staged": {
@@ -19,25 +15,27 @@
       "prettier --write"
     ]
   },
-  "dependencies": {
-    "next": "12.0.1",
-    "react": "17.0.2",
-    "react-dom": "17.0.2",
-    "react-intersection-observer": "8.32.2"
-  },
+  "dependencies": {},
   "devDependencies": {
-    "@types/node": "14.17.21",
-    "@types/react": "17.0.33",
+    "@types/node": "16.11.7",
     "@typescript-eslint/eslint-plugin": "4.33.0",
     "@typescript-eslint/parser": "4.33.0",
     "eslint": "7.23.0",
-    "eslint-config-next": "11.1.2",
     "eslint-config-prettier": "8.3.0",
+    "eslint-plugin-import": "2.25.4",
     "husky": "7.0.4",
+    "lerna": "4.0.0",
     "lint-staged": "11.2.6",
+    "next": "12.0.8",
     "prettier": "2.4.1",
-    "responsive-loader": "2.3.0",
-    "sharp": "0.29.2",
+    "react": "17.0.2",
+    "react-dom": "17.0.2",
     "typescript": "4.4.4"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
