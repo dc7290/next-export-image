@@ -6,6 +6,7 @@
   "homepage": "https://github.com/dc7290/next-export-image#readme",
   "license": "MIT",
   "main": "lib/index.js",
+  "module": "esm/index.js",
   "types": "lib/index.d.ts",
   "directories": {
     "lib": "lib",
@@ -19,6 +20,10 @@
     "url": "git+https://github.com/dc7290/next-export-image.git"
   },
   "scripts": {
+    "build": "yarn clean && run-p build:*",
+    "build:lib": "tsc",
+    "build:esm": "tsc --outDir esm --module esnext",
+    "clean": "rimraf ./esm ./lib",
     "test": "echo \"Error: run tests from root\" && exit 1"
   },
   "bugs": {

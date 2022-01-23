@@ -2,13 +2,15 @@ module.exports = {
   env: {
     es6: true,
     node: true,
+    'jest/globals': true,
   },
   extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended', 'prettier'],
   parser: '@typescript-eslint/parser',
   parserOptions: {
     ecmaVersion: 2021,
     sourceType: 'module',
-    project: './tsconfig.json',
+    project: ['./tsconfig.json'],
+    tsconfigRootDir: __dirname,
   },
   settings: {
     'import/resolver': {
@@ -17,7 +19,7 @@ module.exports = {
       },
     },
   },
-  plugins: ['import'],
+  plugins: ['import', 'jest'],
   rules: {
     '@typescript-eslint/explicit-module-boundary-types': 'off',
     '@typescript-eslint/no-unused-vars': 'error',
